@@ -66,9 +66,14 @@ fun NoteScreen()  {
     val viewModel : NoteViewModel = viewModel()
     val notes by viewModel.allNotes.collectAsState(initial = emptyList())
 
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current       // URL handler
+
+
     var showSettings by remember { mutableStateOf(false)}
     var noteText by remember { mutableStateOf("") }
     var showDialog by remember { mutableStateOf(false)}
+    var showWarning by remember {mutableStateOf(false)}
+
 
 
     Column(
@@ -123,11 +128,14 @@ fun NoteScreen()  {
                 )
                 ) {
 
-                    DropdownMenuItem(text = { Text("GitHub Page") }, onClick = {showSettings = false})       // Says dark mode but doesn't do anything :(
+                    DropdownMenuItem(text = { Text("GitHub Page") }, onClick = {
+                        showSettings = false
+                        uriHandler.openUri("https://github.com/jazavac3")
+                    })
                     Divider(color = Color.White, modifier = Modifier.padding(vertical = 8.dp))
                     DropdownMenuItem(text = {Text("Clear all Notes")}, onClick = {
                         showSettings = false
-                        notes.forEach { viewModel.delete(it) }
+                        showWarning = true
                     })
                     Divider(color = Color.White, modifier = Modifier.padding(vertical = 8.dp))
                     DropdownMenuItem(text = {Text("About")}, onClick = {
@@ -246,6 +254,62 @@ fun NoteScreen()  {
         }
     }
 
+    if(showWarning) {
+        AlertDialog(
+            onDismissRequest = { showWarning = false },
+            containerColor = Color(0xFF3A3A3A),  // Dark background
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(Color.Blue, shape = CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Q",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Serif
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "QuickNotes",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
+                    )
+                }
+            },
+            text = {
+                Column {
+                    Text("Are you sure?")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("This will permanently delete all your notes!")
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                }
+            },
+            dismissButton = {
+
+                TextButton(onClick = {showWarning = false}) {
+                    Text("No", color = Color.White)
+
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showWarning = false
+                    viewModel.deleteAll(notes)
+                }) {
+                    Text("Yes", color = Color.Red)
+
+                }
+            },
+
+        )
+
+    }
 
     if (showDialog) {
         AlertDialog(

@@ -27,4 +27,11 @@ class NoteViewModel(application: Application): AndroidViewModel(application) {
             noteDao.update(note)
         }
     }
+
+
+    fun deleteAll(notes: List<Note>){
+        viewModelScope.launch{
+            noteDao.deleteAll()
+        }
+    }
 }
