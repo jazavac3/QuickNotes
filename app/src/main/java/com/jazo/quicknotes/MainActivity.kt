@@ -132,12 +132,12 @@ fun NoteScreen()  {
                         showSettings = false
                         uriHandler.openUri("https://github.com/jazavac3")
                     })
-                    Divider(color = Color.White, modifier = Modifier.padding(vertical = 8.dp))
-                    DropdownMenuItem(text = {Text("Clear all Notes")}, onClick = {
+                    Divider(color = Color.White, modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp))
+                    DropdownMenuItem(text = {Text("Clear all Notes", color = Color.Red)}, onClick = {
                         showSettings = false
                         showWarning = true
                     })
-                    Divider(color = Color.White, modifier = Modifier.padding(vertical = 8.dp))
+                    Divider(color = Color.White, modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp))
                     DropdownMenuItem(text = {Text("About")}, onClick = {
                         showSettings = false
                         showDialog = true
