@@ -1,6 +1,6 @@
 package com.jazo.quicknotes
 
-// imports for date formatting
+
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -45,6 +45,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +61,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.combinedClickable
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -72,295 +79,411 @@ fun NoteScreen()  {
 
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current       // URL handler
 
-
+    var isLoading by remember { mutableStateOf(true) }
     var showSettings by remember { mutableStateOf(false)}
     var noteText by remember { mutableStateOf("") }
     var showDialog by remember { mutableStateOf(false)}
     var showWarning by remember {mutableStateOf(false)}
 
+    var selectedNote by remember { mutableStateOf<Note?>(null) }
+    var editText by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {          // Switch "Unit" with "notes" and remove 1. line, current version only for showcase
+        kotlinx.coroutines.delay(1500)      // always waits 1.5s
+        isLoading = false
+    }
 
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.systemBars)
-            .padding(16.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.padding(bottom = 16.dp, top = 8.dp).fillMaxWidth()
-
-        )    {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
+    // ANIMATION BETWEEN LOADING SCREEN AND MAIN UI
+    AnimatedContent(
+        targetState = isLoading,
+        transitionSpec = {
+            fadeIn(animationSpec = tween(750)) togetherWith
+                    fadeOut(animationSpec = tween(750))
+        }
+    ) { loading ->
+        if (loading) {
+            FancyLoadingScreen()
+        }   else {
+                // MAIN UI
+                Column(
                     modifier = Modifier
-                        .size(40.dp)
-                        .background(Color(0xB41E88E5), shape = CircleShape),
-                    contentAlignment = Alignment.Center
+                        .fillMaxSize()
+                        .windowInsetsPadding(WindowInsets.systemBars)
+                        .padding(16.dp)
                 ) {
-                    Text(
-                        text = "Q",
-                        color = Color.White,
-                        fontSize = 24.sp,  // keep 24, otherwise too big for the box which wraps it
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Cursive
-                    )
-                }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.padding(bottom = 16.dp, top = 8.dp).fillMaxWidth()
 
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Text(
-                    text = "QuickNotes",
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
-
-
-            Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
-                IconButton(onClick = {showSettings = true}) {      // Done
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Settings",
-                        tint = Color.White
-                    )
-                }
-
-                DropdownMenu(expanded = showSettings, onDismissRequest = {showSettings = false}, containerColor = Color(
-                    0xFF545050
-                )
-                ) {
-
-                    DropdownMenuItem(text = { Text("GitHub Page") }, onClick = {
-                        showSettings = false
-                        uriHandler.openUri("https://github.com/jazavac3")
-                    })
-                    Divider(color = Color.White, modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp))
-                    DropdownMenuItem(text = {Text("Clear all Notes", color = Color.Red)}, onClick = {
-                        showSettings = false
-                        showWarning = true
-                    })
-                    Divider(color = Color.White, modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp))
-                    DropdownMenuItem(text = {Text("About")}, onClick = {
-                        showSettings = false
-                        showDialog = true
-                    })
-                }
-            }
-
-
-
-        }
-
-        Divider()
-
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        TextField(
-            value = noteText,
-            onValueChange = {noteText = it},
-            placeholder = { Text("Enter your note here")},
-            modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color(0xFF3A3A3A),  // Background when typing
-                unfocusedContainerColor = Color(0xFF3A3A3A),  // Background when not typing
-                focusedTextColor = Color.White,  // Text color when typing
-                unfocusedTextColor = Color.White,  // Text color when not typing
-                cursorColor = Color.White,  // Blinking cursor
-                focusedIndicatorColor = Color(0xB41E88E5),  // Bottom line when focused
-                unfocusedIndicatorColor = Color.Gray,  // Bottom line when not focused
-                focusedPlaceholderColor = Color.Gray,  // Placeholder when typing
-                unfocusedPlaceholderColor = Color.Gray  // Placeholder when not typing
-            )
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Button(
-            onClick = {
-                if (noteText.isNotBlank()) {
-                    viewModel.insert(Note(content = noteText))
-                    noteText = ""
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Save Note", color = Color.White)
-
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-        Divider()
-        Spacer(modifier = Modifier.height(32.dp))
-
-        if (notes.isEmpty()) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center){
-                Text("No notes yet!", color = Color.White, fontSize = 32.sp, modifier = Modifier.fillMaxWidth().padding(top = 64.dp), textAlign = TextAlign.Center)
-            }
-
-        } else {
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LazyColumn {
-                items(notes) { note ->
-                    val date = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-                        .format(Date(note.timestamp))
-
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp, horizontal = 8.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFF3A3A3A)  // Slightly lighter than background
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp, horizontal = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f)){
-                                Text(text = note.content, color = Color.White)
-                                Spacer(modifier = Modifier.height(4.dp))
+                    )    {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(Color(0xB41E88E5), shape = CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Text(
-                                    text = date,
-                                    fontSize = 12.sp,
-                                    color = Color.Gray
+                                    text = "Q",
+                                    color = Color.White,
+                                    fontSize = 24.sp,  // keep 24, otherwise too big for the box which wraps it
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Cursive
                                 )
                             }
 
-                            Spacer(modifier = Modifier.width(16.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
 
-                            IconButton(
-                                onClick = { viewModel.delete(note) },
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .border(1.dp, Color.Gray.copy(alpha = 0.3f), CircleShape)
-                                    .padding(4.dp)
-                            ) {
+                            Text(
+                                text = "QuickNotes",
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+
+
+                        Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
+                            IconButton(onClick = {showSettings = true}) {      // Done
                                 Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Delete",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "Settings",
+                                    tint = Color.White
                                 )
+                            }
+
+                            DropdownMenu(expanded = showSettings, onDismissRequest = {showSettings = false}, containerColor = Color(
+                                0xFF545050
+                            )
+                            ) {
+
+                                DropdownMenuItem(text = { Text("GitHub Page") }, onClick = {
+                                    showSettings = false
+                                    uriHandler.openUri("https://github.com/jazavac3")
+                                })
+                                Divider(color = Color.White, modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp))
+                                DropdownMenuItem(text = {Text("Clear all Notes", color = Color.Red)}, onClick = {
+                                    showSettings = false
+                                    showWarning = true
+                                })
+                                Divider(color = Color.White, modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp))
+                                DropdownMenuItem(text = {Text("About")}, onClick = {
+                                    showSettings = false
+                                    showDialog = true
+                                })
+                            }
+                        }
+
+
+
+                    }
+
+                    Divider()
+
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    TextField(
+                        value = noteText,
+                        onValueChange = {noteText = it},
+                        placeholder = { Text("Enter your note here")},
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFF3A3A3A),  // Background when typing
+                            unfocusedContainerColor = Color(0xFF3A3A3A),  // Background when not typing
+                            focusedTextColor = Color.White,  // Text color when typing
+                            unfocusedTextColor = Color.White,  // Text color when not typing
+                            cursorColor = Color.White,  // Blinking cursor
+                            focusedIndicatorColor = Color(0xB41E88E5),  // Bottom line when focused
+                            unfocusedIndicatorColor = Color.Gray,  // Bottom line when not focused
+                            focusedPlaceholderColor = Color.Gray,  // Placeholder when typing
+                            unfocusedPlaceholderColor = Color.Gray  // Placeholder when not typing
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(
+                        onClick = {
+                            if (noteText.isNotBlank()) {
+                                viewModel.insert(Note(content = noteText))
+                                noteText = ""
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Save Note", color = Color.White)
+
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Divider()
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    if (notes.isEmpty()) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center){
+                            Text("No notes yet!", color = Color.White, fontSize = 32.sp, modifier = Modifier.fillMaxWidth().padding(top = 64.dp), textAlign = TextAlign.Center)
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                "Capture your thoughts before they disappear.",
+                                color = Color.Gray
+                            )
+                        }
+
+                    } else {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        LazyColumn {
+                            items(notes) { note ->
+                                val date = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+                                    .format(Date(note.timestamp))
+
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp, horizontal = 8.dp)
+                                        .combinedClickable(
+                                            onClick = {},
+                                            onLongClick = {
+                                                selectedNote = note
+                                                editText = note.content
+                                            }
+                                        ),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = Color(0xFF3A3A3A)  // Slightly lighter than background
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 6.dp, horizontal = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)){
+                                            Text(text = note.content, color = Color.White)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = date,
+                                                fontSize = 12.sp,
+                                                color = Color.Gray
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.width(16.dp))
+
+                                        IconButton(
+                                            onClick = { viewModel.delete(note) },
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .border(1.dp, Color.Gray.copy(alpha = 0.3f), CircleShape)
+                                                .padding(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = "Delete",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
-            }
-        }
-    }
 
-    if(showWarning) {
-        AlertDialog(
-            onDismissRequest = { showWarning = false },
-            containerColor = Color(0xFF3A3A3A),  // Dark background
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .background(Color.Blue, shape = CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Q",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif
+                if(showWarning) {
+                    AlertDialog(
+                        onDismissRequest = { showWarning = false },
+                        containerColor = Color(0xFF3A3A3A),  // Dark background
+                        title = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .background(Color.Blue, shape = CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Q",
+                                        color = Color.White,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Serif
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "QuickNotes",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp
+                                )
+                            }
+                        },
+                        text = {
+                            Column {
+                                Text("Are you sure?")
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("This will permanently delete all your notes!")
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                            }
+                        },
+                        dismissButton = {
+
+                            TextButton(onClick = {showWarning = false}) {
+                                Text("No", color = Color.White)
+
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { showWarning = false
+                                viewModel.deleteAll(notes)
+                            }) {
+                                Text("Yes", color = Color.Red)
+
+                            }
+                        },
+
                         )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "QuickNotes",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
+
+                }
+
+                if (showDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showDialog = false },
+                        containerColor = Color(0xFF3A3A3A),  // Dark background
+                        title = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .background(Color.Blue, shape = CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Q",
+                                        color = Color.White,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Serif
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "QuickNotes",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp
+                                )
+                            }
+                        },
+                        text = {
+                            Column {
+                                Text("Version 1.0.1")
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("A fast and simple notes app built with Kotlin and Jetpack Compose.")
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Developed by jazavac")
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(text = "QN")
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { showDialog = false }) {
+                                Text("Close", color = Color.White)
+                            }
+                        }
                     )
                 }
-            },
-            text = {
-                Column {
-                    Text("Are you sure?")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("This will permanently delete all your notes!")
-                    Spacer(modifier = Modifier.height(8.dp))
+            }
 
+    }
+
+    if (selectedNote != null) {
+        AlertDialog(
+            onDismissRequest = { selectedNote = null },
+            title = { Text("Edit Note") },
+            text = {
+                TextField(
+                    value = editText,
+                    onValueChange = { editText = it }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    selectedNote?.let { note ->
+                        viewModel.update(note.copy(content = editText))
+                    }
+                    selectedNote = null
+                }) {
+                    Text("Save")
                 }
             },
             dismissButton = {
-
-                TextButton(onClick = {showWarning = false}) {
-                    Text("No", color = Color.White)
-
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showWarning = false
-                    viewModel.deleteAll(notes)
+                TextButton(onClick = {
+                    selectedNote = null
                 }) {
-                    Text("Yes", color = Color.Red)
-
-                }
-            },
-
-        )
-
-    }
-
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            containerColor = Color(0xFF3A3A3A),  // Dark background
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .background(Color.Blue, shape = CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Q",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "QuickNotes",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    )
-                }
-            },
-            text = {
-                Column {
-                    Text("Version 1.0.1")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("A fast and simple notes app built with Kotlin and Jetpack Compose.")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Developed by jazavac")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "QN")
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showDialog = false }) {
-                    Text("Close", color = Color.White)
+                    Text("Cancel")
                 }
             }
         )
+    }
+
+
+}
+
+@Composable
+fun FancyLoadingScreen() {
+    val scale = remember { androidx.compose.animation.core.Animatable(0.5f) }
+
+    LaunchedEffect(Unit) {
+        scale.animateTo(
+            targetValue = 1f,
+            animationSpec = androidx.compose.animation.core.spring(
+                dampingRatio = 0.4f,
+                stiffness = 200f
+            )
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF2B2B2B)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+            Box(
+                modifier = Modifier
+                    .size((80 * scale.value).dp)
+                    .background(Color(0xB41E88E5), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Q",
+                    color = Color.White,
+                    fontSize = (32 * scale.value).sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Cursive
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                "QuickNotes",
+                color = Color.White,
+                fontSize = 24.sp
+            )
+        }
     }
 }
 
@@ -372,6 +495,7 @@ class MainActivity : ComponentActivity() {
 
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+
         setContent {
             MaterialTheme(
                 colorScheme = darkColorScheme(
